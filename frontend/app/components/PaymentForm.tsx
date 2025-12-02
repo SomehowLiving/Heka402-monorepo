@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { Heka402SDK } from '@heka402/sdk';
+import { Heka402SDK } from '@heka402/sdk/src/index.ts';
 
 interface PaymentFormProps {
   address: string;
@@ -15,7 +15,6 @@ export function PaymentForm({
   address,
   selectedChains,
   currentChain,
-  onSwitchNetwork,
 }: PaymentFormProps) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
@@ -25,12 +24,12 @@ export function PaymentForm({
 
   const handlePayment = async () => {
     if (!recipient || !amount) {
-      setError('Please fill in all fields');
+      setError('Please fill in all fields.');
       return;
     }
 
     if (!ethers.isAddress(recipient)) {
-      setError('Invalid recipient address');
+      setError('Invalid recipient address.');
       return;
     }
 
@@ -39,29 +38,30 @@ export function PaymentForm({
     setTxHash(null);
 
     try {
-      // Initialize provider and signer
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      // Load circuit files (in production, these would be hosted)
-      // For now, we'll use placeholder paths
       const wasmResponse = await fetch('/circuits/payment.wasm');
       const zkeyResponse = await fetch('/circuits/payment.zkey');
-      
+
       if (!wasmResponse.ok || !zkeyResponse.ok) {
-        throw new Error('Circuit files not found. Please ensure circuits are compiled.');
+        throw new Error('Circuit files not found.');
       }
 
       const wasm = await wasmResponse.arrayBuffer();
       const zkey = await zkeyResponse.arrayBuffer();
 
-      // Contract address (should be deployed)
-      const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x...';
+      const contractAddress =
+        process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x...';
 
-      // Initialize SDK
-      const sdk = new Heka402SDK(provider, signer, contractAddress, wasm, zkey);
+      const sdk = new Heka402SDK(
+        provider,
+        signer,
+        contractAddress,
+        wasm,
+        zkey
+      );
 
-      // Execute payment (5-line flow)
       const hash = await sdk.executePayment({
         recipient,
         amount: ethers.parseEther(amount).toString(),
@@ -70,7 +70,7 @@ export function PaymentForm({
 
       setTxHash(hash);
     } catch (err: any) {
-      setError(err.message || 'Payment failed');
+      setError(err?.message || 'Payment failed.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -78,12 +78,15 @@ export function PaymentForm({
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
-      <h2 className="text-2xl font-bold text-white mb-6">Privacy Payment</h2>
+    <div className="glass-card p-8">
+      <h2 className="text-2xl font-display font-bold mb-6 text-foreground">
+        Privacy Payment
+      </h2>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* Recipient */}
         <div>
-          <label className="block text-white font-semibold mb-2">
+          <label className="block font-medium mb-2 text-foreground">
             Recipient Address
           </label>
           <input
@@ -91,12 +94,18 @@ export function PaymentForm({
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
             placeholder="0x..."
-            className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="
+              w-full px-4 py-3 rounded-lg
+              bg-background border border-input
+              text-foreground placeholder:text-muted-foreground
+              focus:outline-none focus:ring-2 focus:ring-ring
+            "
           />
         </div>
 
+        {/* Amount */}
         <div>
-          <label className="block text-white font-semibold mb-2">
+          <label className="block font-medium mb-2 text-foreground">
             Amount (ETH)
           </label>
           <input
@@ -106,55 +115,67 @@ export function PaymentForm({
             placeholder="0.1"
             step="0.001"
             min="0"
-            className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="
+              w-full px-4 py-3 rounded-lg
+              bg-background border border-input
+              text-foreground placeholder:text-muted-foreground
+              focus:outline-none focus:ring-2 focus:ring-ring
+            "
           />
         </div>
 
-        <div>
-          <p className="text-blue-200 text-sm mb-2">
-            Selected Chains: {selectedChains.join(', ')}
+        {/* Chain Info */}
+        <div className="text-sm">
+          <p className="text-muted-foreground">
+            Selected Chains: {selectedChains.join(', ') || 'None'}
           </p>
-          <p className="text-blue-300 text-xs">
+          <p className="text-muted-foreground">
             Payment will be split across {selectedChains.length} chain(s)
           </p>
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500 rounded-lg p-4">
-            <p className="text-red-200">{error}</p>
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+            <p className="text-destructive text-sm">{error}</p>
           </div>
         )}
 
+        {/* Success */}
         {txHash && (
-          <div className="bg-green-500/20 border border-green-500 rounded-lg p-4">
-            <p className="text-green-200 font-semibold mb-2">Payment Successful!</p>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+            <p className="text-emerald-600 font-medium mb-2">
+              Payment Successful
+            </p>
             <a
               href={`${currentChain?.blockExplorers?.default?.url}/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-green-300 hover:text-green-200 underline text-sm"
+              className="text-emerald-700 hover:underline text-sm"
             >
               View Transaction: {txHash.slice(0, 10)}...
             </a>
           </div>
         )}
 
+        {/* Action Button */}
         <button
           onClick={handlePayment}
           disabled={loading || !recipient || !amount}
-          className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full button-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Processing...' : 'Execute Privacy Payment'}
+          {loading ? 'Processing…' : 'Execute Payment'}
         </button>
       </div>
 
-      <div className="mt-6 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-        <p className="text-blue-200 text-xs">
-          🔒 This payment uses zero-knowledge proofs to protect your privacy.
-          The payment will be split across {selectedChains.length} chain(s) for additional privacy.
+      {/* Footer Notice */}
+      <div className="mt-6 p-4 rounded-lg border border-border bg-muted/40">
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          This transaction uses zero-knowledge proofs to preserve privacy. The
+          payment is split across {selectedChains.length} chain(s) to enhance
+          unlinkability.
         </p>
       </div>
     </div>
   );
 }
-
