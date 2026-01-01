@@ -19,4 +19,5 @@ deployments/*.json
 circuits/*.ptau
 circuits/*.r1cs
 circuits/*.sym
-circom/
+circuits/pot*_*.ptau
+
