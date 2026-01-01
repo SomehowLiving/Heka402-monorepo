@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { ethers } from 'ethers';
+// import { Heka402SDK } from '@heka402/sdk'; // browser-safe SDK
 // import { Heka402SDK } from '@heka402/sdk';
-
 import { Heka402SDK } from '@heka402/sdk/src/index.ts';
+// import { Heka402SDK } from '../../../sdk';
 
 interface PaymentFormProps {
   address: string;
@@ -24,7 +25,12 @@ export function PaymentForm({
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Handle payment execution using the Heka402 SDK.
+   * Proof generation happens server-side via /api/prove.
+   */
   const handlePayment = async () => {
+    // Basic input validation
     if (!recipient || !amount) {
       setError('Please fill in all fields.');
       return;
@@ -35,35 +41,32 @@ export function PaymentForm({
       return;
     }
 
+    if (!selectedChains.length) {
+      setError('No chains selected.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setTxHash(null);
 
     try {
+      // Initialize browser wallet provider and signer
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      const wasmResponse = await fetch('/circuits/payment.wasm');
-      const zkeyResponse = await fetch('/circuits/payment.zkey');
-
-      if (!wasmResponse.ok || !zkeyResponse.ok) {
-        throw new Error('Circuit files not found.');
-      }
-
-      const wasm = await wasmResponse.arrayBuffer();
-      const zkey = await zkeyResponse.arrayBuffer();
-
+      // Contract address (must be deployed on selected chains)
       const contractAddress =
         process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x...';
 
+      // Initialize browser-safe SDK
       const sdk = new Heka402SDK(
         provider,
         signer,
-        contractAddress,
-        wasm,
-        zkey
+        contractAddress
       );
 
+      // Execute privacy-preserving payment
       const hash = await sdk.executePayment({
         recipient,
         amount: ethers.parseEther(amount).toString(),
@@ -86,7 +89,7 @@ export function PaymentForm({
       </h2>
 
       <div className="space-y-5">
-        {/* Recipient */}
+        {/* Recipient address */}
         <div>
           <label className="block font-medium mb-2 text-foreground">
             Recipient Address
@@ -126,7 +129,7 @@ export function PaymentForm({
           />
         </div>
 
-        {/* Chain Info */}
+        {/* Chain info */}
         <div className="text-sm">
           <p className="text-muted-foreground">
             Selected Chains: {selectedChains.join(', ') || 'None'}
@@ -136,14 +139,14 @@ export function PaymentForm({
           </p>
         </div>
 
-        {/* Error */}
+        {/* Error message */}
         {error && (
           <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
             <p className="text-destructive text-sm">{error}</p>
           </div>
         )}
 
-        {/* Success */}
+        {/* Success message */}
         {txHash && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
             <p className="text-emerald-600 font-medium mb-2">
@@ -160,7 +163,7 @@ export function PaymentForm({
           </div>
         )}
 
-        {/* Action Button */}
+        {/* Action button */}
         <button
           onClick={handlePayment}
           disabled={loading || !recipient || !amount}
@@ -170,12 +173,12 @@ export function PaymentForm({
         </button>
       </div>
 
-      {/* Footer Notice */}
+      {/* Informational footer */}
       <div className="mt-6 p-4 rounded-lg border border-border bg-muted/40">
         <p className="text-muted-foreground text-xs leading-relaxed">
-          This transaction uses zero-knowledge proofs to preserve privacy. The
-          payment is split across {selectedChains.length} chain(s) to enhance
-          unlinkability.
+          This transaction uses zero-knowledge proofs generated server-side to
+          preserve privacy. The payment is split across multiple chains to
+          improve unlinkability.
         </p>
       </div>
     </div>
