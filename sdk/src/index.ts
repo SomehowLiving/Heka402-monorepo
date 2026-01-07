@@ -160,6 +160,14 @@ const commitmentBytes32 = ethers.zeroPadValue(
   32
 )
 
+// DEBUGing commitment encoding mismatch
+console.log('Public signal commitment:', commitment);
+console.log('Commitment bytes32:', commitmentBytes32);
+console.log(
+  'Commitment uint256 (from bytes32):',
+  BigInt(commitmentBytes32).toString()
+);
+
 // STATIC CALL (NO GAS, NO TX)
   try {
     await contract.executePayment.staticCall(
@@ -176,6 +184,7 @@ const commitmentBytes32 = ethers.zeroPadValue(
     console.error('❌ Static call revert:', e);
     throw new Error('executePayment would revert (see logs above)');
   }
+
 
   // REAL TRANSACTION
 const tx = await contract.executePayment(
