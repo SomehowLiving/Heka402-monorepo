@@ -73,6 +73,19 @@ export class Heka402SDK {
    * Execute a privacy-preserving payment
    */
   async executePayment(config: PaymentConfig): Promise<string> {
+
+    const signerAddress = await this.signer.getAddress();
+  const balance = await this.provider.getBalance(signerAddress);
+  const network = await this.provider.getNetwork();
+
+  console.log('Signer:', signerAddress);
+  console.log('Network:', network.chainId, network.name);
+  console.log('Balance:', ethers.formatEther(balance));
+
+  //  hard-fail early instead of RPC error
+  if (balance === 0n) {
+    throw new Error(`Signer has zero balance on ${network.name}`);
+  }
     const secret = config.secret || ethers.hexlify(ethers.randomBytes(32))
     const commitment = this.generateCommitment(secret, config.recipient, config.amount)
 
@@ -142,17 +155,40 @@ export class Heka402SDK {
       this.signer
     )
 
-    const tx = await contract.executePayment(
+const commitmentBytes32 = ethers.zeroPadValue(
+  ethers.toBeHex(BigInt(commitment)),
+  32
+)
+
+// STATIC CALL (NO GAS, NO TX)
+  try {
+    await contract.executePayment.staticCall(
       proof.a,
       proof.b,
       proof.c,
-      commitment,
+      commitmentBytes32,
       recipient,
       amount,
       token || ethers.ZeroAddress,
-      nonce,
-      { value: token ? 0 : amount }
-    )
+      nonce
+    );
+  } catch (e) {
+    console.error('❌ Static call revert:', e);
+    throw new Error('executePayment would revert (see logs above)');
+  }
+
+  // REAL TRANSACTION
+const tx = await contract.executePayment(
+  proof.a,
+  proof.b,
+  proof.c,
+  commitmentBytes32,
+  recipient,
+  amount,
+  token || ethers.ZeroAddress,
+  nonce,
+  { value: token ? 0 : amount }
+)
 
     return tx.hash
   }
